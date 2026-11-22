@@ -1,4 +1,4 @@
-name: Build Ys Music Play V4
+name: Build Ys Music Play V4.1
 
 on:
   workflow_dispatch:
@@ -10,8 +10,9 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Android APK with Demucs AI
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,41 +23,48 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Setup Android SDK, NDK and CMake
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK and CMake
+        run: sdkmanager --install "ndk;27.2.12479018" "cmake;3.22.1"
+
       - name: Setup Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Extract V4 source ZIP
+      - name: Extract V4.1 source ZIP
         id: extract
         shell: bash
         run: |
-          ZIP_FILE=$(find . -maxdepth 4 -type f \
-            -name "YsMusicPlay_V4_DEV.zip" -print -quit)
-
+          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V4_1_DEV.zip" -print -quit)
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: V4 ZIP not found"
+            echo "ERROR: YsMusicPlay_V4_1_DEV.zip not found in repository."
+            find . -maxdepth 4 -type f
             exit 1
           fi
 
-          DEST="$RUNNER_TEMP/ysmusic-v4"
+          DEST="$RUNNER_TEMP/ysmusic-v4-1"
           mkdir -p "$DEST"
           unzip -q "$ZIP_FILE" -d "$DEST"
 
-          SETTINGS=$(find "$DEST" -type f \
-            -name settings.gradle.kts -print -quit)
-
+          SETTINGS=$(find "$DEST" -type f -name settings.gradle.kts -print -quit)
           if [ -z "$SETTINGS" ]; then
             echo "settings.gradle.kts not found"
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
-          test -f "$PROJECT_DIR/build.gradle.kts"
-          test -f "$PROJECT_DIR/app/build.gradle.kts"
-          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
-
+          test -f "$PROJECT_DIR/app/src/main/cpp/CMakeLists.txt"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch Demucs Android engine and Eigen
+        working-directory: ${{ steps.extract.outputs.project_dir }}
+        run: |
+          mkdir -p third_party
+          git clone --depth 1 --recurse-submodules https://github.com/jPaauwe/demucs-android third_party/demucs-android
+          test -f third_party/demucs-android/third_party/eigen/Eigen/Dense
 
       - name: Build Debug APK
         working-directory: ${{ steps.extract.outputs.project_dir }}
@@ -69,10 +77,10 @@ jobs:
           test -f "$APK"
           ls -lh "$APK"
 
-      - name: Upload V4 APK
+      - name: Upload V4.1 APK
         uses: actions/upload-artifact@v4
         with:
-          name: YsMusicPlay-V4-APK
+          name: YsMusicPlay-V4_1-APK
           path: ${{ steps.extract.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
