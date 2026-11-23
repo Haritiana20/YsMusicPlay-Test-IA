@@ -1,5 +1,5 @@
 
-name: Build Ys Music Play V5 DEV
+name: Build Ys Music Play V6 FINAL
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Android APK (32-bit + 64-bit)
     runs-on: ubuntu-latest
 
     steps:
@@ -19,67 +19,60 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK, NDK and CMake
         uses: android-actions/setup-android@v4
-        with:
-          packages: "platform-tools"
 
-      - name: Install NDK and CMake
-        run: sdkmanager --install "ndk;27.2.12479018" "cmake;3.22.1"
+      - run: sdkmanager --install "platform-tools" "platforms;android-35" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - name: Setup Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Extract V5 source ZIP
+      - name: Extract V6 source ZIP
         id: extract
         shell: bash
         run: |
-          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V5_DEV.zip" -print -quit)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: V5 ZIP not found"
-            exit 1
-          fi
-
-          DEST="$RUNNER_TEMP/ysmusic-v5"
+          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V6_FINAL.zip" -print -quit)
+          if [ -z "$ZIP_FILE" ]; then echo "YsMusicPlay_V6_FINAL.zip not found"; find . -maxdepth 4 -type f; exit 1; fi
+          DEST="$RUNNER_TEMP/ysmusic-v6"
           mkdir -p "$DEST"
           unzip -q "$ZIP_FILE" -d "$DEST"
-
           SETTINGS=$(find "$DEST" -type f -name settings.gradle.kts -print -quit)
           test -n "$SETTINGS"
           PROJECT_DIR=$(dirname "$SETTINGS")
-
           test -f "$PROJECT_DIR/app/src/main/cpp/CMakeLists.txt"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Fetch Demucs Android engine
+      - name: Fetch native Demucs engine
         working-directory: ${{ steps.extract.outputs.project_dir }}
         run: |
           mkdir -p third_party
           git clone --depth 1 --recurse-submodules https://github.com/jPaauwe/demucs-android third_party/demucs-android
           test -f third_party/demucs-android/third_party/eigen/Eigen/Dense
 
-      - name: Build Debug APK
+      - name: Build debug APK
         working-directory: ${{ steps.extract.outputs.project_dir }}
         run: gradle --no-daemon clean assembleDebug
 
-      - name: Verify APK
+      - name: Verify APK and ABIs
         working-directory: ${{ steps.extract.outputs.project_dir }}
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
+          unzip -l "$APK" | grep -q 'lib/armeabi-v7a/'
+          unzip -l "$APK" | grep -q 'lib/arm64-v8a/'
           ls -lh "$APK"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: YsMusicPlay-V5-DEV-APK
+          name: YsMusicPlay-V6-FINAL-APK
           path: ${{ steps.extract.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
