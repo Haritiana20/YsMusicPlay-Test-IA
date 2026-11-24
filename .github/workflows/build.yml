@@ -1,5 +1,5 @@
 
-name: Build Ys Music Play V6 FINAL
+name: Build Ys Music Play V5.1 MP3 AI
 
 on:
   workflow_dispatch:
@@ -11,9 +11,8 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK (32-bit + 64-bit)
+    name: Build Android APK
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,23 +23,28 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android SDK, NDK and CMake
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      - run: sdkmanager --install "platform-tools" "platforms;android-35" "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Install NDK and CMake
+        run: sdkmanager --install "ndk;27.2.12479018" "cmake;3.22.1" "platforms;android-35"
 
       - name: Setup Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Extract V6 source ZIP
+      - name: Extract V5.1 source ZIP
         id: extract
         shell: bash
         run: |
-          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V6_FINAL.zip" -print -quit)
-          if [ -z "$ZIP_FILE" ]; then echo "YsMusicPlay_V6_FINAL.zip not found"; find . -maxdepth 4 -type f; exit 1; fi
-          DEST="$RUNNER_TEMP/ysmusic-v6"
+          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V5_1_MP3_AI.zip" -print -quit)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: YsMusicPlay_V5_1_MP3_AI.zip not found"
+            find . -maxdepth 4 -type f
+            exit 1
+          fi
+          DEST="$RUNNER_TEMP/ysmusic-v5-1"
           mkdir -p "$DEST"
           unzip -q "$ZIP_FILE" -d "$DEST"
           SETTINGS=$(find "$DEST" -type f -name settings.gradle.kts -print -quit)
@@ -49,7 +53,7 @@ jobs:
           test -f "$PROJECT_DIR/app/src/main/cpp/CMakeLists.txt"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Fetch native Demucs engine
+      - name: Fetch Demucs Android engine
         working-directory: ${{ steps.extract.outputs.project_dir }}
         run: |
           mkdir -p third_party
@@ -60,19 +64,17 @@ jobs:
         working-directory: ${{ steps.extract.outputs.project_dir }}
         run: gradle --no-daemon clean assembleDebug
 
-      - name: Verify APK and ABIs
+      - name: Verify APK
         working-directory: ${{ steps.extract.outputs.project_dir }}
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          unzip -l "$APK" | grep -q 'lib/armeabi-v7a/'
-          unzip -l "$APK" | grep -q 'lib/arm64-v8a/'
           ls -lh "$APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: YsMusicPlay-V6-FINAL-APK
+          name: YsMusicPlay-V5.1-MP3-AI-APK
           path: ${{ steps.extract.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
