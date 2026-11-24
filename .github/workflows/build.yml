@@ -1,5 +1,5 @@
 
-name: Build Ys Music Play V5.1 MP3 AI
+name: Build Ys Music Play V5.1.1 MP3 AI
 
 on:
   workflow_dispatch:
@@ -13,6 +13,7 @@ jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,17 +35,17 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extract V5.1 source ZIP
+      - name: Extract V5.1.1 source ZIP
         id: extract
         shell: bash
         run: |
-          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V5_1_MP3_AI.zip" -print -quit)
+          ZIP_FILE=$(find . -maxdepth 4 -type f -name "YsMusicPlay_V5_1_1_MP3_AI_FIX.zip" -print -quit)
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: YsMusicPlay_V5_1_MP3_AI.zip not found"
+            echo "ERROR: YsMusicPlay_V5_1_1_MP3_AI_FIX.zip not found"
             find . -maxdepth 4 -type f
             exit 1
           fi
-          DEST="$RUNNER_TEMP/ysmusic-v5-1"
+          DEST="$RUNNER_TEMP/ysmusic-v5-1-1"
           mkdir -p "$DEST"
           unzip -q "$ZIP_FILE" -d "$DEST"
           SETTINGS=$(find "$DEST" -type f -name settings.gradle.kts -print -quit)
@@ -74,7 +75,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: YsMusicPlay-V5.1-MP3-AI-APK
+          name: YsMusicPlay-V5.1.1-MP3-AI-FIX-APK
           path: ${{ steps.extract.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
